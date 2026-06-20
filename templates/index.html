@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IBM Storage Virtualize — Replication Monitor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --border: #d1d5db;
+      --text: #1a1d23;
+      --muted: #6b7280;
+      --accent: #0062fe;
+      --accent-dark: #0043ce;
+      --green: #198038;
+      --green-bg: #defbe6;
+      --yellow: #b45309;
+      --yellow-bg: #fef3c7;
+      --red: #da1e28;
+      --red-bg: #fff1f1;
+      --radius: 8px;
+      --shadow: 0 1px 4px rgba(0,0,0,0.10);
+    }
+
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #001141;
+      color: #fff;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      height: 56px;
+      border-bottom: 3px solid var(--accent);
+    }
+    header svg { flex-shrink: 0; }
+    header h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.02em; }
+    header span { font-size: 12px; color: #a8b4c8; margin-left: auto; }
+
+    /* ── Layout ── */
+    .page { max-width: 980px; margin: 0 auto; padding: 28px 16px 60px; }
+
+    .grid { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-header {
+      background: #f7f8fa;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-header h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .card-body { padding: 20px; }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px; }
+    label .req { color: var(--red); margin-left: 2px; }
+    label .hint { font-weight: 400; color: var(--muted); font-size: 11px; }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 8px 11px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,98,254,0.12); }
+    input.error { border-color: var(--red); }
+
+    .field-error { color: var(--red); font-size: 11px; margin-top: 3px; display: none; }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* auth tabs */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      user-select: none;
+      transition: color 0.15s;
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* toggle */
+    .toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0;
+      background: #d1d5db;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: "";
+      position: absolute;
+      width: 14px; height: 14px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
+    .toggle-label { font-size: 13px; }
+
+    /* section divider */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+    /* buttons */
+    .btn-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px;
+      border-radius: 5px;
+      font-size: 14px; font-weight: 500; font-family: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-dark); }
+    .btn-secondary { background: transparent; color: var(--accent); border-color: var(--accent); }
+    .btn-secondary:hover { background: #f0f4ff; }
+    .btn-ghost { background: transparent; color: var(--muted); border-color: var(--border); }
+    .btn-ghost:hover { background: #f7f8fa; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* spinner */
+    .spinner {
+      display: none;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-primary.loading .spinner { display: inline-block; }
+    .btn-primary.loading .btn-text { opacity: 0.7; }
+
+    /* ── Alert ── */
+    .alert {
+      display: none;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      margin-bottom: 20px;
+      border-left: 4px solid;
+    }
+    .alert.show { display: flex; align-items: flex-start; gap: 10px; }
+    .alert-error { background: var(--red-bg); border-color: var(--red); color: #7d1419; }
+    .alert-success { background: var(--green-bg); border-color: var(--green); color: #0d4420; }
+    .alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Results panel ── */
+    #results-panel { display: none; }
+
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    @media (max-width: 560px) { .stat-grid { grid-template-columns: 1fr 1fr; } }
+
+    .stat-card {
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+    .stat-card .num { font-size: 28px; font-weight: 700; line-height: 1.2; }
+    .stat-card .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-top: 2px; }
+    .stat-card.total { background: #f0f4ff; }
+    .stat-card.normal { background: var(--green-bg); }
+    .stat-card.normal .num { color: var(--green); }
+    .stat-card.warning { background: var(--yellow-bg); }
+    .stat-card.warning .num { color: var(--yellow); }
+    .stat-card.error-card { background: var(--red-bg); }
+    .stat-card.error-card .num { color: var(--red); }
+
+    /* health bar */
+    .health-bar-wrap { margin-bottom: 20px; }
+    .health-bar-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; color: var(--muted); }
+    .health-bar-track { background: var(--border); border-radius: 6px; height: 10px; overflow: hidden; }
+    .health-bar-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+
+    /* table */
+    .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: #f7f8fa; }
+    th { padding: 10px 14px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 10px 14px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafbfc; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 9px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-normal { background: var(--green-bg); color: var(--green); }
+    .badge-warning { background: var(--yellow-bg); color: var(--yellow); }
+    .badge-error { background: var(--red-bg); color: var(--red); }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-normal { background: var(--green); }
+    .dot-warning { background: #f59e0b; }
+    .dot-error { background: var(--red); }
+
+    /* meta info */
+    .meta-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 18px; font-size: 12px; color: var(--muted); }
+    .meta-row strong { color: var(--text); }
+
+    /* toast */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1a1d23; color: #fff;
+      padding: 10px 18px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* empty state */
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+
+    /* filter bar */
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .filter-btn {
+      padding: 4px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.12s;
+    }
+    .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ── Auto-refresh bar ── */
+    .poll-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+      padding: 10px 14px;
+      background: #f7f8fa;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .poll-bar select {
+      width: auto;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    .poll-bar .btn { padding: 5px 12px; font-size: 12px; }
+    #poll-status { margin-left: auto; font-variant-numeric: tabular-nums; min-width: 80px; text-align: right; }
+    #poll-countdown {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      margin-right: 4px;
+      vertical-align: middle;
+      transition: background 0.3s;
+    }
+    #poll-countdown.active { background: var(--green); }
+    #poll-countdown.paused { background: #f59e0b; }
+
+    /* progress strip under header when polling */
+    #poll-progress {
+      height: 3px;
+      background: var(--border);
+      overflow: hidden;
+      display: none;
+    }
+    #poll-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 100%;
+      transform-origin: left;
+      transition: transform linear;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <rect width="32" height="32" rx="4" fill="#0062fe"/>
+    <text x="5" y="22" font-size="14" font-weight="900" fill="#fff" font-family="monospace">IBM</text>
+  </svg>
+  <h1>Storage Virtualize — Replication Monitor</h1>
+  <span id="last-run-meta"></span>
+</header>
+<div id="poll-progress"><div id="poll-progress-fill"></div></div>
+
+<div class="page">
+  <div class="grid">
+
+    <!-- ── LEFT: Connection Form ── -->
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+          <h2>Connection Settings</h2>
+        </div>
+        <div class="card-body">
+
+          <div id="form-alert" class="alert alert-error">
+            <span class="alert-icon">✕</span>
+            <span id="form-alert-msg"></span>
+          </div>
+
+          <!-- Host & Port -->
+          <div class="row-2">
+            <div class="form-group">
+              <label for="host">Host / IP Address <span class="req">*</span></label>
+              <input type="text" id="host" placeholder="192.168.1.100" autocomplete="off">
+              <div class="field-error" id="host-err">Host is required</div>
+            </div>
+            <div class="form-group">
+              <label for="port">REST API Port <span class="hint">(default 443)</span></label>
+              <input type="number" id="port" placeholder="443" value="443" min="1" max="65535">
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <!-- Auth method tabs -->
+          <div class="tabs">
+            <div class="tab active" data-tab="userpass">Username / Password</div>
+            <div class="tab" data-tab="token">API Token</div>
+          </div>
+
+          <div class="tab-panel active" id="tab-userpass">
+            <div class="form-group">
+              <label for="username">Username <span class="req">*</span></label>
+              <input type="text" id="username" placeholder="admin" autocomplete="username">
+              <div class="field-error" id="username-err">Username is required</div>
+            </div>
+            <div class="form-group">
+              <label for="password">Password <span class="req">*</span></label>
+              <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+              <div class="field-error" id="password-err">Password is required</div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="tab-token">
+            <div class="form-group">
+              <label for="token">Authentication Token <span class="req">*</span></label>
+              <input type="password" id="token" placeholder="Paste your API token here">
+              <div class="field-error" id="token-err">Token is required</div>
+            </div>
+            <p style="font-size:12px;color:var(--muted);">Generate a token via <code>POST /rest/v1/auth</code> on your FlashSystem management interface.</p>
+          </div>
+
+          <hr class="divider">
+
+          <!-- Advanced -->
+          <details open>
+            <summary style="cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);list-style:none;display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              Advanced Options
+            </summary>
+
+            <div class="row-2" style="margin-top:12px;">
+              <div class="form-group">
+                <label for="timeout">Timeout (seconds)</label>
+                <input type="number" id="timeout" value="30" min="5" max="300">
+              </div>
+              <div class="form-group">
+                <label for="api-version">API Base Path <span class="hint">(optional)</span></label>
+                <input type="text" id="api-version" placeholder="/rest/v1" value="/rest/v1">
+              </div>
+            </div>
+
+            <div class="toggle-row">
+              <label class="toggle">
+                <input type="checkbox" id="verify-ssl">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-label">Verify SSL Certificate <span style="color:var(--muted);font-weight:400;">(disable for self-signed certs)</span></span>
+            </div>
+
+            <p id="ssl-warn" style="font-size:11px;color:var(--yellow);background:var(--yellow-bg);padding:6px 10px;border-radius:4px;margin-top:-6px;display:block;">
+              ⚠ SSL verification is disabled — safe for self-signed FlashSystem certificates.
+            </p>
+          </details>
+
+          <!-- Buttons -->
+          <div class="btn-row">
+            <button class="btn btn-primary" id="run-btn" onclick="runCheck()">
+              <span class="btn-text">Run Check</span>
+              <span class="spinner"></span>
+            </button>
+            <button class="btn btn-secondary" onclick="saveConfig()">Save Config</button>
+            <button class="btn btn-ghost" onclick="loadConfig()">Load Config</button>
+          </div>
+
+          <!-- Auto-refresh -->
+          <div class="poll-bar">
+            <span>Auto-refresh</span>
+            <select id="poll-interval">
+              <option value="0">Off</option>
+              <option value="30">30 s</option>
+              <option value="60" selected>1 min</option>
+              <option value="300">5 min</option>
+            </select>
+            <button class="btn btn-ghost" id="poll-toggle-btn" onclick="togglePoll()" disabled>
+              ▶ Start
+            </button>
+            <span id="poll-status"><span id="poll-countdown"></span></span>
+          </div>
+
+        </div><!-- /card-body -->
+      </div><!-- /card -->
+
+      <!-- Connection guide -->
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <h2>Connection Guide</h2>
+        </div>
+        <div class="card-body" style="font-size:12px;color:var(--muted);line-height:1.8;">
+          <p><strong style="color:var(--text);">Host</strong> — Management IP or FQDN of the FlashSystem / SVC node (e.g. <code>192.168.10.50</code> or <code>flashsystem.corp.net</code>).</p>
+          <p style="margin-top:8px;"><strong style="color:var(--text);">Port</strong> — Default REST API port is <code>7443</code> on some firmware versions and <code>443</code> on others. Check your system's management console.</p>
+          <p style="margin-top:8px;"><strong style="color:var(--text);">Username</strong> — Local or LDAP account with at least <em>Monitor</em> role on the array.</p>
+          <p style="margin-top:8px;"><strong style="color:var(--text);">API Path</strong> — Most current FlashSystem firmware uses <code>/rest/v1</code>. Older SVC may use <code>/rest/v1</code> as well; check IBM documentation for your firmware version.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RIGHT: Results Panel ── -->
+    <div id="results-panel">
+      <div class="card">
+        <div class="card-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <h2>Replication Status</h2>
+          <button class="btn btn-ghost" style="margin-left:auto;padding:4px 10px;font-size:12px;" onclick="exportJson()">Export JSON</button>
+        </div>
+        <div class="card-body">
+
+          <div class="meta-row">
+            <div>Array: <strong id="res-host">—</strong></div>
+            <div>Checked: <strong id="res-time">—</strong></div>
+          </div>
+
+          <!-- Summary stats -->
+          <div class="stat-grid">
+            <div class="stat-card total">
+              <div class="num" id="stat-total">0</div>
+              <div class="lbl">Total</div>
+            </div>
+            <div class="stat-card normal">
+              <div class="num" id="stat-normal">0</div>
+              <div class="lbl">Normal</div>
+            </div>
+            <div class="stat-card warning">
+              <div class="num" id="stat-warning">0</div>
+              <div class="lbl">Warning</div>
+            </div>
+            <div class="stat-card error-card">
+              <div class="num" id="stat-error">0</div>
+              <div class="lbl">Error</div>
+            </div>
+          </div>
+
+          <!-- Health bar -->
+          <div class="health-bar-wrap">
+            <div class="health-bar-label">
+              <span>Overall Replication Health</span>
+              <span id="health-pct">—</span>
+            </div>
+            <div class="health-bar-track">
+              <div class="health-bar-fill" id="health-fill" style="width:0%;background:var(--green);"></div>
+            </div>
+          </div>
+
+          <!-- Filter -->
+          <div class="filter-bar">
+            <button class="filter-btn active" data-filter="all" onclick="applyFilter(this)">All</button>
+            <button class="filter-btn" data-filter="normal" onclick="applyFilter(this)">Normal</button>
+            <button class="filter-btn" data-filter="warning" onclick="applyFilter(this)">Warning</button>
+            <button class="filter-btn" data-filter="error" onclick="applyFilter(this)">Error</button>
+          </div>
+
+          <!-- Table -->
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Volume Group</th>
+                  <th>Link Status</th>
+                  <th>Production Site</th>
+                  <th>Recovery Site</th>
+                  <th>Within RPO</th>
+                  <th>Policy</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="rel-tbody">
+                <tr><td colspan="7"><div class="empty-state"><div class="icon">📡</div><p>Run a check to see replication status.</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div><!-- /results-panel -->
+
+    <!-- Placeholder shown before first run -->
+    <div id="placeholder-panel">
+      <div class="card">
+        <div class="card-body">
+          <div class="empty-state" style="padding:60px 20px;">
+            <div class="icon">🔍</div>
+            <p style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px;">Ready to Connect</p>
+            <p>Fill in the connection settings on the left and click <strong>Run Check</strong> to pull replication status from your FlashSystem array.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+</div><!-- /page -->
+
+<div id="toast"></div>
+
+<script>
+  /* ── State ── */
+  let lastResult    = null;
+  let activeTab     = 'userpass';
+  let activeFilter  = 'all';
+
+  /* ── Polling state ── */
+  let pollTimer      = null;   // setTimeout handle for next fire
+  let countdownTimer = null;   // setInterval handle for countdown ticks
+  let pollRunning    = false;
+  let pollSecondsLeft = 0;
+
+  /* ── Tab switching ── */
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      activeTab = tab.dataset.tab;
+      document.getElementById('tab-' + activeTab).classList.add('active');
+    });
+  });
+
+  /* ── SSL warning ── */
+  document.getElementById('verify-ssl').addEventListener('change', function () {
+    document.getElementById('ssl-warn').style.display = this.checked ? 'none' : '';
+  });
+
+  /* ── Validation ── */
+  function clearErrors() {
+    document.querySelectorAll('.field-error').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('input.error').forEach(el => el.classList.remove('error'));
+    hideAlert('form-alert');
+  }
+
+  function fieldErr(id, msgId) {
+    document.getElementById(id).classList.add('error');
+    document.getElementById(msgId).style.display = 'block';
+  }
+
+  function showAlert(id, msg) {
+    const el = document.getElementById(id);
+    document.getElementById(id + '-msg').textContent = msg;
+    el.classList.add('show');
+  }
+
+  function hideAlert(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  function validate() {
+    clearErrors();
+    let ok = true;
+    const host = document.getElementById('host').value.trim();
+    if (!host) { fieldErr('host', 'host-err'); ok = false; }
+
+    if (activeTab === 'userpass') {
+      if (!document.getElementById('username').value.trim()) { fieldErr('username', 'username-err'); ok = false; }
+      if (!document.getElementById('password').value) { fieldErr('password', 'password-err'); ok = false; }
+    } else {
+      if (!document.getElementById('token').value.trim()) { fieldErr('token', 'token-err'); ok = false; }
+    }
+    return ok;
+  }
+
+  /* ── Build payload ── */
+  function buildPayload() {
+    return {
+      host: document.getElementById('host').value.trim(),
+      port: document.getElementById('port').value.trim(),
+      username: activeTab === 'userpass' ? document.getElementById('username').value.trim() : '',
+      password: activeTab === 'userpass' ? document.getElementById('password').value : '',
+      token: activeTab === 'token' ? document.getElementById('token').value.trim() : '',
+      verify_ssl: document.getElementById('verify-ssl').checked ? 'true' : 'false',
+      timeout: parseInt(document.getElementById('timeout').value) || 30,
+    };
+  }
+
+  /* ── Run check ── */
+  // silent=true skips form validation and error alerts (used by auto-poll)
+  async function runCheck(silent = false) {
+    if (!silent && !validate()) return;
+
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try {
+      const resp = await fetch('/api/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPayload())
+      });
+
+      const data = await resp.json();
+
+      if (!data.success) {
+        if (!silent) showAlert('form-alert', data.error || 'Unknown error occurred.');
+        else toast('⚠ Auto-refresh error: ' + (data.error || 'unknown'));
+        return;
+      }
+
+      lastResult = data;
+      renderResults(data);
+      if (!silent) toast('Check complete — ' + data.summary.total + ' relationship(s) found.');
+
+      // Enable the poll toggle after the first successful run
+      document.getElementById('poll-toggle-btn').disabled = false;
+
+    } catch (err) {
+      if (!silent) showAlert('form-alert', 'Network error: ' + err.message);
+      else toast('⚠ Network error during auto-refresh.');
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+  /* ── Polling engine ── */
+  function pollIntervalSeconds() {
+    return parseInt(document.getElementById('poll-interval').value, 10) || 0;
+  }
+
+  function startPolling() {
+    const secs = pollIntervalSeconds();
+    if (secs === 0) return;
+    pollRunning = true;
+    setPollUI(true);
+    scheduleNext(secs);
+  }
+
+  function stopPolling() {
+    pollRunning = false;
+    clearTimeout(pollTimer);
+    clearInterval(countdownTimer);
+    pollTimer = null;
+    countdownTimer = null;
+    setPollUI(false);
+  }
+
+  function togglePoll() {
+    if (pollRunning) {
+      stopPolling();
+    } else {
+      if (pollIntervalSeconds() === 0) { toast('Select an interval first.'); return; }
+      startPolling();
+    }
+  }
+
+  function scheduleNext(secs) {
+    pollSecondsLeft = secs;
+    updateCountdownDisplay();
+
+    // progress bar
+    const prog = document.getElementById('poll-progress');
+    const fill = document.getElementById('poll-progress-fill');
+    prog.style.display = 'block';
+    fill.style.transition = 'none';
+    fill.style.transform = 'scaleX(1)';
+    // force reflow then animate shrink
+    fill.getBoundingClientRect();
+    fill.style.transition = `transform ${secs}s linear`;
+    fill.style.transform = 'scaleX(0)';
+
+    // countdown ticks every second
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(() => {
+      pollSecondsLeft--;
+      updateCountdownDisplay();
+      if (pollSecondsLeft <= 0) clearInterval(countdownTimer);
+    }, 1000);
+
+    // fire after interval
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(async () => {
+      if (!pollRunning) return;
+      await runCheck(true);
+      if (pollRunning) scheduleNext(pollIntervalSeconds());
+    }, secs * 1000);
+  }
+
+  function updateCountdownDisplay() {
+    const el = document.getElementById('poll-status');
+    const dot = document.getElementById('poll-countdown');
+    if (!pollRunning) {
+      el.textContent = '';
+      dot.className = '';
+      return;
+    }
+    const s = pollSecondsLeft;
+    const display = s >= 60 ? Math.ceil(s / 60) + 'm' : s + 's';
+    dot.className = 'active';
+    el.innerHTML = '<span id="poll-countdown" class="active"></span>Next in ' + display;
+  }
+
+  function setPollUI(running) {
+    const btn = document.getElementById('poll-toggle-btn');
+    const sel = document.getElementById('poll-interval');
+    const dot = document.getElementById('poll-countdown');
+    if (running) {
+      btn.textContent = '⏸ Pause';
+      sel.disabled = true;
+      dot.className = 'active';
+    } else {
+      btn.textContent = '▶ Start';
+      sel.disabled = false;
+      dot.className = 'paused';
+      document.getElementById('poll-status').textContent = 'Paused';
+      document.getElementById('poll-progress').style.display = 'none';
+    }
+  }
+
+  // Changing the interval while running restarts the cycle
+  document.getElementById('poll-interval').addEventListener('change', () => {
+    if (pollRunning) {
+      stopPolling();
+      if (pollIntervalSeconds() > 0) startPolling();
+    }
+    // disable Start button if interval set to Off
+    if (pollIntervalSeconds() === 0) stopPolling();
+  });
+
+  /* ── Render results ── */
+  function renderResults(data) {
+    document.getElementById('placeholder-panel').style.display = 'none';
+    document.getElementById('results-panel').style.display = 'block';
+
+    document.getElementById('res-host').textContent = data.host;
+    document.getElementById('res-time').textContent = new Date(data.timestamp).toLocaleString();
+    document.getElementById('last-run-meta').textContent = 'Last run: ' + new Date(data.timestamp).toLocaleTimeString();
+
+    document.getElementById('stat-total').textContent = data.summary.total;
+    document.getElementById('stat-normal').textContent = data.summary.normal;
+    document.getElementById('stat-warning').textContent = data.summary.warning;
+    document.getElementById('stat-error').textContent = data.summary.error;
+
+    const total = data.summary.total || 1;
+    const pct = Math.round((data.summary.normal / total) * 100);
+    document.getElementById('health-pct').textContent = pct + '%';
+    const fill = document.getElementById('health-fill');
+    fill.style.width = pct + '%';
+    fill.style.background = pct === 100 ? 'var(--green)' : pct >= 80 ? '#f59e0b' : 'var(--red)';
+
+    renderTable(data.relationships);
+  }
+
+  function renderTable(rows) {
+    const tbody = document.getElementById('rel-tbody');
+    if (!rows || rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">✅</div><p>No replication relationships found on this array.</p></div></td></tr>';
+      return;
+    }
+
+    const filtered = activeFilter === 'all' ? rows : rows.filter(r => r.category === activeFilter);
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">🔎</div><p>No relationships match the selected filter.</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(r => {
+      const badgeClass = r.category === 'normal' ? 'badge-normal' : r.category === 'warning' ? 'badge-warning' : 'badge-error';
+      const dotClass   = r.category === 'normal' ? 'dot-normal'  : r.category === 'warning' ? 'dot-warning'  : 'dot-error';
+      const label      = r.category.charAt(0).toUpperCase() + r.category.slice(1);
+      const rpo = r.within_rpo === 'yes'
+        ? '<span style="color:var(--green);font-weight:600;">✓ Yes</span>'
+        : r.within_rpo === 'no'
+          ? '<span style="color:var(--red);font-weight:600;">✗ No</span>'
+          : '<span style="color:var(--muted);">—</span>';
+      return `
+        <tr>
+          <td><strong>${esc(r.name)}</strong></td>
+          <td><code style="font-size:12px;">${esc(r.state)}</code></td>
+          <td>${esc(r.primary_vdisk)}</td>
+          <td>${esc(r.secondary_vdisk)}</td>
+          <td>${rpo}</td>
+          <td style="color:var(--muted);font-size:12px;">${esc(r.policy)}</td>
+          <td><span class="badge ${badgeClass}"><span class="dot ${dotClass}"></span>${label}</span></td>
+        </tr>`;
+    }).join('');
+  }
+
+  /* ── Filter ── */
+  function applyFilter(btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    if (lastResult) renderTable(lastResult.relationships);
+  }
+
+  /* ── Export JSON ── */
+  function exportJson() {
+    if (!lastResult) return;
+    const blob = new Blob([JSON.stringify(lastResult, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'replication-status-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /* ── Save / Load config ── */
+  async function saveConfig() {
+    const host = document.getElementById('host').value.trim();
+    if (!host) { toast('Enter a host before saving.'); return; }
+    const payload = {
+      host,
+      port: document.getElementById('port').value.trim(),
+      username: document.getElementById('username').value.trim(),
+      verify_ssl: document.getElementById('verify-ssl').checked,
+      timeout: parseInt(document.getElementById('timeout').value) || 30,
+    };
+    const resp = await fetch('/api/save-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    toast(data.success ? '✓ Config saved to config.json' : '✗ ' + data.error);
+  }
+
+  async function loadConfig() {
+    const resp = await fetch('/api/load-config');
+    const data = await resp.json();
+    if (!data.success) { toast('No saved config found.'); return; }
+    const c = data.config;
+    if (c.host) document.getElementById('host').value = c.host;
+    if (c.port) document.getElementById('port').value = c.port;
+    if (c.username) document.getElementById('username').value = c.username;
+    if (c.verify_ssl !== undefined) document.getElementById('verify-ssl').checked = !!c.verify_ssl;
+    if (c.timeout) document.getElementById('timeout').value = c.timeout;
+    toast('✓ Config loaded.');
+  }
+
+  /* ── Helpers ── */
+  function esc(s) {
+    return String(s ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  /* keyboard shortcut: Enter triggers run */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runCheck();
+  });
+</script>
+
+</body>
+</html>

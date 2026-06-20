@@ -1,0 +1,8 @@
+{
+  "host": "https://your-storage-system.example.com",
+  "username": "admin",
+  "password": "your-password-here",
+  "verify_ssl": true,
+  "timeout": 30,
+  "log_level": "INFO"
+}
